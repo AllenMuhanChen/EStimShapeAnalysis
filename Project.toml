@@ -1,0 +1,13 @@
+name = "EStimShapeAnalysis"
+uuid = "eee18aad-ff85-4bd9-9abe-3b2c7fa95750"
+authors = ["Allen Chen <allenmuhanchen@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
