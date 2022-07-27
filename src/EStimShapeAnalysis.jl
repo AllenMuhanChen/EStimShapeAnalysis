@@ -16,7 +16,18 @@ using .DbUtil
 
 # Write your package code here.
 function test()
-    connect()
-    return "Hello Guy"
+    global conn = connect()
+    date1 = Date(2022,05,9)
+    date2 = Date(2022,05,13)
+    dates = (date1,date2)
+    
+    #behMsg = DbUtil.getBehMsg(DbUtil.today)
+    behMsg = DbUtil.getBehMsg(dates)
+    stimSpec = DbUtil.getStimSpec(dates)
+    stimObjData = DbUtil.getStimObjData(dates)
+    ##Compile Data 
+    df = DataCompileUtil.collectTrials(behMsg)
+
+
 end 
 end

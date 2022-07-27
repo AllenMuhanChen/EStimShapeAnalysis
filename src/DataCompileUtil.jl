@@ -10,7 +10,7 @@ module DataCompileUtil
 # using Printf
 # include("./DbUtil.jl")
 
-export compileTrainingData, checkForMsgType
+export compileTrainingData, checkForMsgType, collectTrials
 
 
 """
@@ -36,10 +36,11 @@ removes the appropiate one
 3. Parses through SQL msg and specs to get the wanted data and puts
 it in a data frame. 
 """
-function DataFrame::collectTrials(behMsg,DataFrame::df)
+function DataFrame::collectTrials(behMsg)
+    df = DataFrame();
     trialStarts = behMsg[behMsg.type .== "TrialStart", :tstamp]
     trialStops = behMsg[behMsg.type .== "TrialStop", :tstamp]
-
+    
     #BALANCE trialStart and trialStop 
     
     #the first trialStop is before the first trialStart
@@ -62,36 +63,41 @@ function DataFrame::collectTrials(behMsg,DataFrame::df)
             deleteat!(trialStops, firstBadTrial)
         end 
     end 
-
+    
     df.trialStart = trialStarts
     df.trialStop = trialStops
-
+    
     return df;
 end
 
-function compileTrainingData(behMsg, stimSpec, stimObjData)
-    df = DataFrame();
-    df = collectTrials(df);
+
+function DataFrame::collectCompleteTrials()
+    
+    df = collectTrials();
     
     #
     firstTrialStart = df[1,:trialStart]
     lastTrialStop = df[end,:trialStop]
-    # behMsg = filter([:tstamp] => x -> x>=firstTrialStart && x<=lastTrialStop, behMsg)
-    # firstStimSpec = filter([:tstamp]=>x->x==minimum(behMsg[:,:tstamp]), behMsg)
-    # stimSpec = filter([:id]=> x -> x>=firstStimSpec,stimSpec)
-    # stimObjData = filter([:id]=> x -> x>=firstStimSpec,stimObjData)
     
     #trialComplete tstamps from behMsg. Filter down to where there is only trialCompletes between trialStarts and trialStops
     trialCompletes = behMsg[behMsg.type .== "TrialComplete", :tstamp]
     df = filter([:trialStart, :trialStop] => (x,y)->checkForMsgType(x,y,trialCompletes), df)
-    df.trialComplete = trialCompletes
+    # df.trialComplete = trialCompletes
     
+    return df
+end 
+
+function DataFrame::collectChoiceTrials()
+    df = collectCompleteTrials();
     #ChoiceSelectionSuccess tstamps from behMsg. Filter down to only where there is choiceSelectionSuccess
     choiceSelectionSuccesses = behMsg[behMsg.type .== "ChoiceSelectionSuccess", :tstamp]
     df = filter([:trialStart, :trialStop] => (x,y)->checkForMsgType(x,y,choiceSelectionSuccesses), df)
-    df.choiceSelectionSuccess = choiceSelectionSuccesses;
-    
+    #df.choiceSelectionSuccess = choiceSelectionSuccesses;
+end 
 
+function compileTrainingData(behMsg, stimSpec, stimObjData)
+    df = collectChoiceTrials()
+    
     #stimSpecIds from behMsg trialCompletes
     trialCompleteXml = filter([:tstamp] => x -> issubset(x,df.trialComplete), behMsg)
     getStimSpecId = DbUtil.makeXMLParser(["stimSpecId"]);
@@ -124,7 +130,7 @@ function compileTrainingData(behMsg, stimSpec, stimObjData)
     choiceObjDataIds = ((list) -> parse.(Int64, list)).(choiceObjDataIds); #broadcast anonymous function here to iterate over elements twice to parse this out.
     df.choiceObjDataId = choiceObjDataIds
     
-
+    
     #choiceObjData_DATA
     function getChoiceData(stimObjDataIds::Vector{Int64})
         choiceObjDataDf = filter([:id]=>x->issubset(x,stimObjDataIds),stimObjData) 
